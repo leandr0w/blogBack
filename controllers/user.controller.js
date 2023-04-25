@@ -1,6 +1,8 @@
 const Post = require('../models/post.model');
 const User = require('../models/user.models');
 const catchAsync = require('./../utils/catchAsync');
+const { ref, getDownloadURL } = require('firebase/storage');
+const { storage } = require('./../utils/firebase');
 
 exports.findAll = catchAsync(async (req, res) => {
   const users = await User.findAll({
@@ -14,15 +16,33 @@ exports.findAll = catchAsync(async (req, res) => {
       },
     ],
   });
+
+  const userPromises = users.map(async (user) => {
+    const imgRef = ref(storage, user.profileImgUrl);
+
+    const url = await getDownloadURL(imgRef);
+
+    user.profileImgUrl = url;
+
+    return user;
+  });
+
+  const userResolved = await Promise.all(userPromises);
+
   res.status(200).json({
     status: 'success',
     results: users.length,
-    users,
+    users: userResolved,
   });
 });
 
 exports.findOne = catchAsync(async (req, res) => {
   const { user } = req;
+
+  const imgRef = ref(storage, user.profileImgUrl);
+  const url = await getDownloadURL(imgRef);
+
+  user.profileImgUrl = url;
 
   return res.status(200).json({
     status: 'success',
